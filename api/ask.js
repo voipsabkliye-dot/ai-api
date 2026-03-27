@@ -1,15 +1,13 @@
 export default async function handler(req, res) {
-  // ✅ CORS HEADERS
+  // ✅ CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // ✅ Handle preflight request
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  // ✅ Allow only POST
   if (req.method !== "POST") {
     return res.status(405).json({ answer: "Method Not Allowed" });
   }
@@ -21,6 +19,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ answer: "No question provided" });
     }
 
+    // 🔥 CHECK API KEY
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ answer: "API key missing" });
+    }
+
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -28,32 +31,24 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-mini", // ✅ updated stable model
         input: question,
       }),
     });
 
     const data = await response.json();
 
-    let answer = "No response from AI";
+    // 🔍 DEBUG LOG (VERY IMPORTANT)
+    console.log("OPENAI RESPONSE:", JSON.stringify(data, null, 2));
 
-    if (data.output && Array.isArray(data.output)) {
-      const texts = [];
-
-      for (const item of data.output) {
-        if (item.content && Array.isArray(item.content)) {
-          for (const contentItem of item.content) {
-            if (contentItem.text) {
-              texts.push(contentItem.text);
-            }
-          }
-        }
-      }
-
-      if (texts.length > 0) {
-        answer = texts.join(" ");
-      }
+    // ❌ If OpenAI error
+    if (data.error) {
+      return res.status(500).json({
+        answer: "OpenAI Error: " + data.error.message,
+      });
     }
+
+    let answer = data.output_text || "No response from AI";
 
     return res.status(200).json({ answer });
 
