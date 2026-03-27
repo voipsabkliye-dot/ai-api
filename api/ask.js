@@ -1,13 +1,4 @@
 export default async function handler(req, res) {
-  // ✅ CORS
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
   if (req.method !== "POST") {
     return res.status(405).json({ answer: "Method Not Allowed" });
   }
@@ -26,20 +17,36 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-mini",
+        model: "gpt-4.1-mini", // ✅ UPDATED MODEL
         input: question,
       }),
     });
 
     const data = await response.json();
 
-    // 🔥 SIMPLE & CORRECT
-    const answer = data.output_text || "No response from AI";
+    console.log("FULL DATA:", JSON.stringify(data, null, 2));
 
-    return res.status(200).json({ answer });
+    // ✅ CORRECT parsing
+    let answer = data.output_text;
+
+    // fallback (just in case)
+    if (!answer && data.output) {
+      answer = data.output
+        .map(o =>
+          o.content?.map(c => c.text).join(" ")
+        )
+        .join(" ");
+    }
+
+    return res.status(200).json({
+      answer: answer || "Still no response",
+    });
 
   } catch (error) {
     console.error("ERROR:", error);
-    return res.status(500).json({ answer: "Server error" });
+
+    return res.status(500).json({
+      answer: "Server error",
+    });
   }
 }
