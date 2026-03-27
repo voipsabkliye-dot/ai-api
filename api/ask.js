@@ -1,4 +1,15 @@
 export default async function handler(req, res) {
+  // ✅ CORS HEADERS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // ✅ Handle preflight request
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  // ✅ Allow only POST
   if (req.method !== "POST") {
     return res.status(405).json({ answer: "Method Not Allowed" });
   }
@@ -24,14 +35,30 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    let answer =
-      data.output_text ||
-      data.output?.[0]?.content?.[0]?.text ||
-      "No response";
+    let answer = "No response from AI";
+
+    if (data.output && Array.isArray(data.output)) {
+      const texts = [];
+
+      for (const item of data.output) {
+        if (item.content && Array.isArray(item.content)) {
+          for (const contentItem of item.content) {
+            if (contentItem.text) {
+              texts.push(contentItem.text);
+            }
+          }
+        }
+      }
+
+      if (texts.length > 0) {
+        answer = texts.join(" ");
+      }
+    }
 
     return res.status(200).json({ answer });
 
   } catch (error) {
+    console.error("ERROR:", error);
     return res.status(500).json({ answer: "Server error" });
   }
 }
