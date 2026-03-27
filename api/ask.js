@@ -1,4 +1,13 @@
 export default async function handler(req, res) {
+  // CORS (keep it — useful)
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ answer: "Method Not Allowed" });
   }
@@ -17,30 +26,22 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-mini", // ✅ UPDATED MODEL
+        model: "gpt-4.1-mini",
         input: question,
       }),
     });
 
     const data = await response.json();
 
-    console.log("FULL DATA:", JSON.stringify(data, null, 2));
+    console.log("FULL OPENAI RESPONSE:", JSON.stringify(data, null, 2));
 
-    // ✅ CORRECT parsing
-    let answer = data.output_text;
+    // ✅ THE ONLY PARSING YOU NEED
+    const answer =
+      data.output_text ||
+      data.output?.[0]?.content?.[0]?.text ||
+      "No response from OpenAI";
 
-    // fallback (just in case)
-    if (!answer && data.output) {
-      answer = data.output
-        .map(o =>
-          o.content?.map(c => c.text).join(" ")
-        )
-        .join(" ");
-    }
-
-    return res.status(200).json({
-      answer: answer || "Still no response",
-    });
+    return res.status(200).json({ answer });
 
   } catch (error) {
     console.error("ERROR:", error);
