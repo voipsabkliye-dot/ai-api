@@ -1,13 +1,15 @@
 export default async function handler(req, res) {
-  // CORS (keep it — useful)
+  // ✅ CORS (important for browser requests)
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
+  // ✅ Handle preflight
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
+  // ✅ Allow only POST
   if (req.method !== "POST") {
     return res.status(405).json({ answer: "Method Not Allowed" });
   }
@@ -15,10 +17,12 @@ export default async function handler(req, res) {
   try {
     const { question } = req.body;
 
+    // ✅ Validate input
     if (!question || question.trim() === "") {
       return res.status(400).json({ answer: "No question provided" });
     }
 
+    // ✅ Call OpenAI
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -33,15 +37,13 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
+    // 🔥 LOG for Vercel logs
     console.log("FULL OPENAI RESPONSE:", JSON.stringify(data, null, 2));
 
-    // ✅ THE ONLY PARSING YOU NEED
-    const answer =
-      data.output_text ||
-      data.output?.[0]?.content?.[0]?.text ||
-      "No response from OpenAI";
-
-    return res.status(200).json({ answer });
+    // 🔥 TEMP DEBUG RESPONSE (IMPORTANT)
+    return res.status(200).json({
+      full: data,
+    });
 
   } catch (error) {
     console.error("ERROR:", error);
